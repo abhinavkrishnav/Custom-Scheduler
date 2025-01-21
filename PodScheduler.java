@@ -2,13 +2,13 @@ import java.util.*;
 
 class Pod {
     String id;
-    int cpu;
-    int memory;
+    int cpuRequest;
+    int memoryRequest;
 
-    public Pod(String id, int cpu, int memory) {
+    public Pod(String id, int cpuRequest, int memoryRequest) {
         this.id = id;
-        this.cpu = cpu;
-        this.memory = memory;
+        this.cpuRequest = cpuRequest;
+        this.memoryRequest = memoryRequest;
     }
 }
 
@@ -34,37 +34,26 @@ public class PodScheduler {
         Queue<Pod> podQueue = new LinkedList<>();
         List<Node> nodes = new ArrayList<>();
 
-        // Initialize 50 pods with random CPU and memory requirements
+        // Generate sample pods and nodes
         for (int i = 1; i <= 50; i++) {
-            podQueue.add(new Pod("pod" + i, (int) (Math.random() * 4 + 1), (int) (Math.random() * 8 + 1)));
+            podQueue.add(new Pod("Pod" + i, (i % 4) + 1, (i % 8) + 2));
         }
 
-        // Initialize 10 nodes with random CPU and memory capacities
         for (int i = 1; i <= 10; i++) {
-            nodes.add(new Node("node" + i, (int) (Math.random() * 16 + 8), (int) (Math.random() * 32 + 16)));
+            nodes.add(new Node("Node" + i, 20, 40));
         }
 
-        System.out.println("Initial Pod Queue:");
-        for (Pod pod : podQueue) {
-            System.out.println(pod.id + " - CPU: " + pod.cpu + ", Memory: " + pod.memory);
-        }
+        // Print initial pod and node details
+        printPodsAndNodes(podQueue, nodes);
 
-        System.out.println("\nAvailable Nodes:");
-        for (Node node : nodes) {
-            System.out.println(node.id + " - CPU: " + node.cpuCapacity + ", Memory: " + node.memoryCapacity);
-        }
+        // Assign pods to nodes
+        Map<String, String> assignments = assignPodsToNodes(podQueue, nodes);
 
-        Map<String, String> podAssignments = assignPodsToNodes(podQueue, nodes);
-        
-        System.out.println("\nPod Assignments:");
-        for (Map.Entry<String, String> entry : podAssignments.entrySet()) {
-            System.out.println(entry.getKey() + " assigned to " + entry.getValue());
-        }
+        // Print assignment results
+        printAssignments(assignments);
 
-        System.out.println("\nNode Status After Assignment:");
-        for (Node node : nodes) {
-            System.out.println(node.id + " - Remaining CPU: " + node.cpuCapacity + ", Remaining Memory: " + node.memoryCapacity);
-        }
+        // Print final node stats
+        printNodeStats(nodes);
     }
 
     public static Map<String, String> assignPodsToNodes(Queue<Pod> podQueue, List<Node> nodes) {
@@ -78,7 +67,7 @@ public class PodScheduler {
                 double resourceCostScore = calculateResourceCostScore(pod, node);
                 double finalScore = ALPHA * resourceCostScore;
 
-                if (finalScore > bestScore && checkConstraints(pod, node)) {
+                if (finalScore > bestScore && node.cpuCapacity >= pod.cpuRequest && node.memoryCapacity >= pod.memoryRequest) {
                     bestScore = finalScore;
                     bestNode = node;
                 }
@@ -86,8 +75,8 @@ public class PodScheduler {
 
             if (bestNode != null) {
                 assignments.put(pod.id, bestNode.id);
-                bestNode.cpuCapacity -= pod.cpu;
-                bestNode.memoryCapacity -= pod.memory;
+                bestNode.cpuCapacity -= pod.cpuRequest;
+                bestNode.memoryCapacity -= pod.memoryRequest;
             }
         }
         return assignments;
@@ -95,11 +84,39 @@ public class PodScheduler {
 
     private static double calculateResourceCostScore(Pod pod, Node node) {
         double costAvailable = node.cpuCapacity * CPU_COST_FACTOR + node.memoryCapacity * MEMORY_COST_FACTOR;
-        double costRequested = pod.cpu * CPU_COST_FACTOR + pod.memory * MEMORY_COST_FACTOR;
+        double costRequested = pod.cpuRequest * CPU_COST_FACTOR + pod.memoryRequest * MEMORY_COST_FACTOR;
         return costAvailable - costRequested;
     }
 
-    private static boolean checkConstraints(Pod pod, Node node) {
-        return node.cpuCapacity >= pod.cpu && node.memoryCapacity >= pod.memory;
+    private static void printPodsAndNodes(Queue<Pod> pods, List<Node> nodes) {
+        System.out.println("\nInitial Pod and Node Details:");
+        System.out.println("------------------------------------------------");
+        System.out.printf("%-10s %-10s %-10s\n", "Pod", "CPU", "Memory");
+        for (Pod pod : pods) {
+            System.out.printf("%-10s %-10d %-10d\n", pod.id, pod.cpuRequest, pod.memoryRequest);
+        }
+        System.out.println("------------------------------------------------");
+        System.out.printf("%-10s %-10s %-10s\n", "Node", "CPU", "Memory");
+        for (Node node : nodes) {
+            System.out.printf("%-10s %-10d %-10d\n", node.id, node.cpuCapacity, node.memoryCapacity);
+        }
+    }
+
+    private static void printAssignments(Map<String, String> assignments) {
+        System.out.println("\nPod Assignments:");
+        System.out.println("------------------------------------------------");
+        System.out.printf("%-10s %-10s\n", "Pod", "Node");
+        for (Map.Entry<String, String> entry : assignments.entrySet()) {
+            System.out.printf("%-10s %-10s\n", entry.getKey(), entry.getValue());
+        }
+    }
+
+    private static void printNodeStats(List<Node> nodes) {
+        System.out.println("\nFinal Node Stats After Assignment:");
+        System.out.println("------------------------------------------------");
+        System.out.printf("%-10s %-10s %-10s\n", "Node", "CPU Left", "Memory Left");
+        for (Node node : nodes) {
+            System.out.printf("%-10s %-10d %-10d\n", node.id, node.cpuCapacity, node.memoryCapacity);
+        }
     }
 }
