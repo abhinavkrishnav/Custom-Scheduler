@@ -4,15 +4,11 @@ class Pod {
     String id;
     int cpu;
     int memory;
-    Map<String, Integer> affinities;
-    Map<String, Integer> antiAffinities;
 
     public Pod(String id, int cpu, int memory) {
         this.id = id;
         this.cpu = cpu;
         this.memory = memory;
-        this.affinities = new HashMap<>();
-        this.antiAffinities = new HashMap<>();
     }
 }
 
@@ -37,42 +33,41 @@ public class PodScheduler {
     public static void main(String[] args) {
         Queue<Pod> podQueue = new LinkedList<>();
         List<Node> nodes = new ArrayList<>();
-        Map<String, Map<String, Integer>> trafficMatrix = new HashMap<>();
-        Map<String, Map<String, Integer>> latencyMatrix = new HashMap<>();
 
-        // Sample data initialization
-        podQueue.add(new Pod("pod1", 2, 4));
-        podQueue.add(new Pod("pod2", 1, 2));
-        podQueue.add(new Pod("pod3", 3, 6));
+        // Initialize 50 pods with random CPU and memory requirements
+        for (int i = 1; i <= 50; i++) {
+            podQueue.add(new Pod("pod" + i, (int) (Math.random() * 4 + 1), (int) (Math.random() * 8 + 1)));
+        }
 
-        nodes.add(new Node("node1", 4, 8));
-        nodes.add(new Node("node2", 2, 4));
-        nodes.add(new Node("node3", 6, 10));
+        // Initialize 10 nodes with random CPU and memory capacities
+        for (int i = 1; i <= 10; i++) {
+            nodes.add(new Node("node" + i, (int) (Math.random() * 16 + 8), (int) (Math.random() * 32 + 16)));
+        }
 
-        System.out.println("POD SCHEDULING STARTED...");
-        System.out.println("Number of Pods: " + podQueue.size());
-        System.out.println("Number of Nodes: " + nodes.size());
-        System.out.println("\nPod Details:");
+        System.out.println("Initial Pod Queue:");
         for (Pod pod : podQueue) {
-            System.out.println("- " + pod.id + " [CPU: " + pod.cpu + ", Memory: " + pod.memory + "]");
-        }
-        
-        System.out.println("\nNode Details:");
-        for (Node node : nodes) {
-            System.out.println("- " + node.id + " [CPU: " + node.cpuCapacity + ", Memory: " + node.memoryCapacity + "]");
+            System.out.println(pod.id + " - CPU: " + pod.cpu + ", Memory: " + pod.memory);
         }
 
-        Map<String, String> podAssignments = assignPodsToNodes(podQueue, nodes, trafficMatrix, latencyMatrix);
+        System.out.println("\nAvailable Nodes:");
+        for (Node node : nodes) {
+            System.out.println(node.id + " - CPU: " + node.cpuCapacity + ", Memory: " + node.memoryCapacity);
+        }
+
+        Map<String, String> podAssignments = assignPodsToNodes(podQueue, nodes);
         
         System.out.println("\nPod Assignments:");
         for (Map.Entry<String, String> entry : podAssignments.entrySet()) {
-            System.out.println("Pod " + entry.getKey() + " assigned to Node " + entry.getValue());
+            System.out.println(entry.getKey() + " assigned to " + entry.getValue());
+        }
+
+        System.out.println("\nNode Status After Assignment:");
+        for (Node node : nodes) {
+            System.out.println(node.id + " - Remaining CPU: " + node.cpuCapacity + ", Remaining Memory: " + node.memoryCapacity);
         }
     }
 
-    public static Map<String, String> assignPodsToNodes(Queue<Pod> podQueue, List<Node> nodes, 
-                                                         Map<String, Map<String, Integer>> trafficMatrix, 
-                                                         Map<String, Map<String, Integer>> latencyMatrix) {
+    public static Map<String, String> assignPodsToNodes(Queue<Pod> podQueue, List<Node> nodes) {
         Map<String, String> assignments = new HashMap<>();
         while (!podQueue.isEmpty()) {
             Pod pod = podQueue.poll();
@@ -81,10 +76,9 @@ public class PodScheduler {
 
             for (Node node : nodes) {
                 double resourceCostScore = calculateResourceCostScore(pod, node);
-                double trafficCostScore = calculateTrafficCostScore(pod, node, assignments, trafficMatrix, latencyMatrix);
-                double finalScore = ALPHA * resourceCostScore - BETA * trafficCostScore;
+                double finalScore = ALPHA * resourceCostScore;
 
-                if (finalScore > bestScore && checkConstraints(pod, node, assignments)) {
+                if (finalScore > bestScore && checkConstraints(pod, node)) {
                     bestScore = finalScore;
                     bestNode = node;
                 }
@@ -105,29 +99,7 @@ public class PodScheduler {
         return costAvailable - costRequested;
     }
 
-    private static double calculateTrafficCostScore(Pod pod, Node node, 
-                                                    Map<String, String> assignments, 
-                                                    Map<String, Map<String, Integer>> trafficMatrix, 
-                                                    Map<String, Map<String, Integer>> latencyMatrix) {
-        double cost = 0;
-        for (Map.Entry<String, String> entry : assignments.entrySet()) {
-            String scheduledPod = entry.getKey();
-            String scheduledNode = entry.getValue();
-            if (trafficMatrix.containsKey(pod.id) && trafficMatrix.get(pod.id).containsKey(scheduledPod)) {
-                cost += trafficMatrix.get(pod.id).get(scheduledPod) * latencyMatrix.get(node.id).get(scheduledNode);
-            }
-        }
-        return cost;
-    }
-
-    private static boolean checkConstraints(Pod pod, Node node, Map<String, String> assignments) {
-        for (Map.Entry<String, String> entry : assignments.entrySet()) {
-            String scheduledPod = entry.getKey();
-            String scheduledNode = entry.getValue();
-            if (pod.antiAffinities.containsKey(scheduledPod) && scheduledNode.equals(node.id)) {
-                return false;
-            }
-        }
-        return true;
+    private static boolean checkConstraints(Pod pod, Node node) {
+        return node.cpuCapacity >= pod.cpu && node.memoryCapacity >= pod.memory;
     }
 }
