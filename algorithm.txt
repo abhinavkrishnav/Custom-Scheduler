@@ -1,0 +1,59 @@
+ALGORITHM FOR POD SCHEDULING IN KUBERNETES
+INPUT:
+PodsQueue: Queue of unscheduled pods
+Nodes: Set of available nodes
+PodsTypeInfo: Information about pod types and their affinities/anti-affinities
+ResourceInfo: Resources available on nodes (CPU, memory, etc.)
+TrafficMatrix: Matrix representing inter-pod communication traffic
+LatencyMatrix: Matrix representing network latency between nodes
+CostConversionFactors: Factors to convert resource usage into cost-equivalent terms (e.g., CPU cost/unit, memory cost/unit)
+STEPS
+1. Initialization
+Compute PodsTraffic from TrafficMatrix, where PodsTraffic[i][j] represents the communication traffic between pod i and pod j.
+Extract resource requirements and affinity/anti-affinity rules for each pod from PodsQueue.
+2. Preprocess Nodes and Pods
+Group nodes by resource capacity (e.g., high-memory, high-CPU, balanced).
+Categorize pods into workload types (e.g., compute-intensive, memory-intensive, balanced).
+3. Convert Resource Usage into Cost
+For each node N:
+Compute the cost equivalence of available resources: 
+CostAvailable(N)=CPU(N)⋅CPUFactor+Memory(N)⋅MemoryFactor
+Similarly, for each pod P, compute the resource request cost: 
+CostRequested(P)=CPU(P)⋅CPUFactor+Memory(P)⋅MemoryFactor
+4. Calculate Node Scores for Each Pod
+For each pod P in PodsQueue:
+For each node N in Nodes:
+
+
+Compute Resource Cost Score
+ ResourceCostScore(P,N)=CostAvailable(N)−CostRequested(P)
+Compute Latency and Traffic Cost
+
+
+For already scheduled pods Q on N: 
+TrafficCost(P,Q)=PodsTraffic[P][Q]⋅LatencyMatrix[N][Node(Q)]
+Sum the traffic cost: 
+TrafficCostScore(P,N)=∑Q∈PodsOn(N)TrafficCost(P,Q)
+Compute Final Node Score
+ NodeScore(P,N)=α⋅ResourceCostScore−β⋅TrafficCostScore 
+(where α,β are weight coefficients).
+5. Assign Pods to Nodes
+While PodsQueue is not empty:
+Pop the highest-priority pod P from PodsQueue.
+Sort nodes N by their NodeScore for P in descending order.
+Assign P to the highest-scoring node N that satisfies all constraints:
+Sufficient resources.
+No anti-affinity violations.
+Affinity rules are satisfied.
+Update resource availability and node state.
+Recompute PodsTraffic and LatencyMatrix scores for remaining pods if necessary.
+7. Return Result
+Output the final pod-to-node assignments.
+
+MODIFICATIONS SUGGESTED
+
+1. Consider pod qos class type to add separate score for pods.
+
+2. Consider deployments with hpa and vpa .
+
+3. In step 3, consider the actual pod level usage.
